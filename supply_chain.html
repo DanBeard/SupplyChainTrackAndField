@@ -1,0 +1,172 @@
+<canvas id="canvas" width="1500" height="900" style="border:1px solid #d3d3d3;">
+
+</canvas>
+
+
+<div style="display:none;">
+    <img id="player1"
+         src="/sprites/player1.png">
+    <img id="player2"
+         src="/sprites/player2.png">
+    <img id="bg"
+         src="/sprites/bg.png">
+</div>
+
+<script>
+
+
+    function init(){
+
+
+
+        var canvasWidth = 1500;
+        var canvasHeight = 900;
+        var ctx = document.getElementById('canvas').getContext('2d');
+        var player1Sprites = document.getElementById('player1');
+        var player2Sprites = document.getElementById('player2');
+        var bgSprites = document.getElementById('bg');
+        var player1Width = 19; var player1Height = 38;
+
+        var spriteScale = 2.5;
+
+        // SPRITE HELPER FUNCS
+        function drawSprite(img, canvasX, canvasY, frameX, frameY, width, height, scale) {
+            var scaledWidth = scale * width;
+            var scaledHeight = scale * height;
+            ctx.drawImage(img,
+                frameX, frameY, width, height,
+                canvasX, canvasY, scaledWidth, scaledHeight);
+        }
+
+        function drawPlayerSprite(playerName, state, canvasX, canvasY) {
+            //[x,y,width]
+            var sprite_info = {
+                idle:  [0, 4, 19, 32],
+                mark: [176, 4, 29, 32],
+                set: [208, 4, 32, 32],
+                run0:  [2, 40, 23, 32],
+                run1:  [25, 40, 23, 32],
+                run2:  [46, 40, 23, 32],
+                run3:  [72, 40, 23, 32],
+                run4:  [96, 45, 31, 28],
+                run5:  [130, 41, 31, 32],
+
+            };
+            var info =  sprite_info[state];
+            var sprites = playerName === "player1" ? player1Sprites : player2Sprites; //TODO player 2 sprites
+            drawSprite(sprites, canvasX, canvasY,info[0], info[1], info[2], info[3], spriteScale);
+        }
+
+        function drawBgSprite(sprite, canvasX, canvasY) {
+            var sprite_info = {
+                track: [3, 17, 28, 25]
+            };
+            var info =  sprite_info[sprite];
+            drawSprite(bgSprites, canvasX, canvasY,info[0], info[1], info[2], info[3], spriteScale);
+        }
+
+        const pixelToM = ~~(canvasWidth / 20); // about 20 meters per screen
+
+        function drawDistanceMarker(distance, x,y) {
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.rect(x-25, y, 50, 25);
+            ctx.fill();
+            // now the text
+            ctx.font = "30px \"Lucida Console\", Monaco, monospace";
+            ctx.fillStyle = "white";
+            ctx.textAlign = "center";
+            ctx.fillText(distance, x, y + 25);
+        }
+
+        function drawBackground() {
+            // draw the tracks
+            var x = 0; var trackWidth =  25;
+            const p1Y = state.player1.Y + 50;
+            const p2Y = state.player2.Y + 50;
+            while(x <= canvasWidth) {
+                drawBgSprite("track", x, p1Y);
+                drawBgSprite("track", x, p2Y);
+                x += trackWidth;
+            }
+
+            // now draw the numbers for each player's tracks
+            //Player 1
+            x = ~~(state.player1.X - 10*pixelToM);
+            var distance = ~~(state.player1.distance - 10); // start BEHIND the player so it doesnt dissppear
+            var xShift = (state.player1.distance - 10 - distance) * pixelToM; // shift the drawing for smooth animation in flating point distances
+            while(x <= canvasWidth) {
+                if(distance % 10 == 0 && distance > 0 ) {
+                    drawDistanceMarker(distance, x - xShift, p1Y+36)
+                }
+                distance++;
+                x += pixelToM
+            }
+
+
+        }
+
+        //STATE
+        var framenum = 0;
+
+        var state = {
+            player1 : {
+                X: 150,
+                Y: 50, // hard coded Y values, since... they never change
+                action: "idle", // idle, mark, set or running
+                runAnimCounter: 0, // which frame of runANim to use if rnning
+                distance: 0, //"distance" player has run in like, meters or something.
+                maxDistance: 500
+            },
+            player2 : {
+                X: 150,
+                Y: 150, // hard coded Y values, since... they never change
+                action: "idle", // idle, mark, set or running
+                runAnimCounter: 0, // which frame of runANim to use if rnning
+                distance: 0, //"distance" player has run in like, meters or something.
+                maxDistance: 100
+            }
+        };
+        document.state = state; // for easy tweaking.
+
+        document.startRun = function(){state.player1.action = "running"}
+        // DRAW HELPER FUNCS
+        var playerNames = [null, "player1", "player2"];
+        function drawPlayer(playernum){
+
+            var playername = playerNames[playernum];
+            var playerState = state[playername];
+            if(playerState.action === "running") {
+                drawPlayerSprite(playername, "run"+playerState.runAnimCounter, playerState.X, playerState.Y);
+                playerState.runAnimCounter = (playerState.runAnimCounter + 1) % 6; // wrap around
+            }
+            else {
+                drawPlayerSprite(playername, playerState.action, playerState.X, playerState.Y);
+            }
+        }
+        // MAIN DRAW FUNC
+        function draw() {
+            framenum++;
+            framenum = framenum % 100; // 100 options to slow frames down
+            // schedule nex draw
+            window.requestAnimationFrame(draw);
+
+            // only do this every 3 frames
+            if(framenum % 4 === 0) {
+                ctx.clearRect(0, 0, canvasWidth, canvasHeight); // clear canvas
+                drawBackground();
+                drawPlayer(1);
+                drawPlayer(2);
+
+            }
+
+        }
+
+        draw();
+
+    }
+
+    setTimeout(init, 100);
+
+</script>
+
