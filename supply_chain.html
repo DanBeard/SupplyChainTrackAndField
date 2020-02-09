@@ -141,6 +141,10 @@
                 if(distance % 10 === 0 && distance > 0 ) {
                     drawMarker(distance, x - xShift, playerState.Y+78)
                 }
+                if(playerState.drawOtherPlayers) {
+                    if(distance === state.player2.distance) drawPlayer(2, x, playerState.Y);
+                    else if(distance === state.player3.distance) drawPlayer(3, x, playerState.Y);
+                }
                 distance++;
                 x += pixelToM
             }
@@ -208,9 +212,9 @@
                 action: "idle", // idle, mark, set or running
                 runAnimCounter: 0, // which frame of runANim to use if rnning
                 distance: 0, //"distance" player has run in like, meters or something.
-                maxDistance: 300
-                ,
-                finisher: true // if finished will the win?
+                maxDistance: 300,
+                finisher: true, // if finished will the win?
+                drawOtherPlayers: false,
             },
             player1 : {
                 X: 250,
@@ -223,7 +227,8 @@
                 maxDistance: 100,
                 finisher: false, // if finished will the win?
                 buttonPushed: true, // if true, they will try and run, if false, then no
-                canRun:true // if true, then this player can run the relay race
+                canRun:true, // if true, then this player can run the relay race
+                drawOtherPlayers: true
             },
             player2 : {
                 X: 250,
@@ -236,7 +241,8 @@
                 maxDistance: 200,
                 finisher: false, // if finished will the win?
                 buttonPushed: true, // if true, they will try and run, if false, then no
-                canRun:false
+                canRun:false,
+                drawOtherPlayers: true
             },
             player3 : {
                 X: 250,
@@ -250,6 +256,7 @@
                 finisher: false, // if finished will the win?
                 buttonPushed: true, // if true, they will try and run, if false, then no
                 canRun: false,
+                drawOtherPlayers: false
             },
         };
         const initialState = JSON.parse(JSON.stringify(state));
@@ -260,34 +267,37 @@
 
         // DRAW HELPER FUNCS
         const playerNames = ["cpu","player1","player2","player3"];
-        function drawPlayer(playernum){
+        function drawPlayer(playernum, overrideX, overrideY){
             const playername = playerNames[playernum];
             const playerState = state[playername];
+            const X = overrideX ? overrideX : playerState.X;
+            const Y = overrideY ? overrideY : playerState.Y;
             if(playerState.action === "running") {
-                drawPlayerSprite(playernum, "run"+playerState.runAnimCounter, playerState.X, playerState.Y);
+                drawPlayerSprite(playernum, "run"+playerState.runAnimCounter, X, Y);
                 playerState.runAnimCounter = (playerState.runAnimCounter + 1) % 6; // wrap around
             }
             else if(playerState.action === "win" || playerState.action === "lose") {
                 let animCount = (~~(framenum % 4) /2);
-                drawPlayerSprite(playernum, playerState.action+animCount, playerState.X, playerState.Y);
+                drawPlayerSprite(playernum, playerState.action+animCount, X,Y);
 
             }
             else {
-                drawPlayerSprite(playernum, playerState.action, playerState.X, playerState.Y);
+                drawPlayerSprite(playernum, playerState.action, X, Y);
             }
         }
 
         function drawPlayerFinishLine(playerState, onend) {
             //running through finish line animation
-            let interval = setInterval(()=>{
-                playerState.X += 1;
+            var intervalHandle = setInterval(()=>{
+                playerState.X += 10;
                 playerState.targetX = playerState.X;
-                playerState.distance += 0.01;
+                playerState.distance += 0.1;
                 if(playerState.X >= 900) {
-                    clearInterval(interval);
+                    clearInterval(intervalHandle);
                     if(onend) onend();
                 }
-            }, 8);
+            }, 80);
+
         }
 
         // MAIN DRAW FUNC
@@ -310,27 +320,29 @@
 
                 // Game logic
 
-                // smooth animaton
-                if(state.cpu.targetX > state.cpu.X) state.cpu.X+=15;
-                else if(state.cpu.targetX < state.cpu.X) state.cpu.X--;
-
-                if(state.player1.targetX > state.player1.X) state.player1.X+=15;
-                else if(state.player1.targetX < state.player1.X) state.player1.X--;
-
-                if(state.player2.targetX > state.player2.X) state.player2.X+=15;
-                else if(state.player2.targetX < state.player2.X) state.player2.X--;
-
-                if(state.player3.targetX > state.player3.X) state.player3.X+=15;
-                else if(state.player3.targetX < state.player3.X) state.player3.X--;
-
                 //CPU move
                 if(state.game.state === "game") {
+
+                    // smooth animaton
+                    if(state.cpu.targetX > state.cpu.X) state.cpu.X+=15;
+                    else if(state.cpu.targetX < state.cpu.X) state.cpu.X--;
+
+                    if(state.player1.targetX > state.player1.X) state.player1.X+=15;
+                    else if(state.player1.targetX < state.player1.X) state.player1.X--;
+
+                    if(state.player2.targetX > state.player2.X) state.player2.X+=15;
+                    else if(state.player2.targetX < state.player2.X) state.player2.X--;
+
+                    if(state.player3.targetX > state.player3.X) state.player3.X+=15;
+                    else if(state.player3.targetX < state.player3.X) state.player3.X--;
+
+                    const cpuDistLeft = (state.cpu.maxDistance - state.cpu.distance);
 
                     //move player if buttons pushed
                     if(state.player1.canRun && state.player1.distance < state.player1.maxDistance) {
                         if(state.player1.buttonPushed) {
                             state.player1.distance +=0.33;
-                            state.player1.targetX = state.player1.distance > state.cpu.distance ? 750 : 250 ;
+                            state.player1.targetX = (state.player1.maxDistance - state.player1.distance) < cpuDistLeft ? 750 : 250 ;
                             state.player1.action = "running"
                         } else {
                             state.player1.action="idle";
@@ -340,7 +352,7 @@
                     if(state.player2.canRun && state.player2.distance < state.player2.maxDistance) {
                         if(state.player2.buttonPushed) {
                             state.player2.distance +=0.33;
-                            state.player1.targetX = state.player2.distance > state.cpu.distance ? 750 : 250 ;;
+                            state.player2.targetX = (state.player2.maxDistance - state.player2.distance) < cpuDistLeft ? 750 : 250 ;
                             state.player2.action = "running"
                         } else {
                             state.player2.action="idle";
@@ -350,7 +362,7 @@
                     if(state.player3.canRun && state.player3.distance < state.player3.maxDistance) {
                         if(state.player3.buttonPushed) {
                             state.player3.distance +=0.33;
-                            state.player1.targetX = state.player2.distance > state.cpu.distance ? 750 : 250 ;;
+                            state.player3.targetX = (state.player3.maxDistance - state.player3.distance) < cpuDistLeft ? 750 : 250 ;
                             state.player3.action = "running"
                         } else {
                             state.player3.action="idle";
@@ -365,11 +377,13 @@
                     if(state.player3.distance >= state.player3.maxDistance) state.game.state = "win";
 
                     //stop player 1 and player 2 if they're at max distance, no run animation
-                    if(state.player1.distance >= state.player1.maxDistance)  {
+                    if(state.player1.canRun && state.player1.distance >= state.player1.maxDistance)  {
+                        state.player1.canRun = false;
                         drawPlayerFinishLine(state.player1, ()=> state.player1.action = "idle");
                         state.player2.canRun = true; // relay off to player 2
                     }
-                    if(state.player2.distance >= state.player2.maxDistance)  {
+                    if( state.player2.canRun && state.player2.distance >= state.player2.maxDistance)  {
+                        state.player2.canRun = false;
                         drawPlayerFinishLine(state.player2, ()=> state.player2.action = "idle");
                         state.player3.canRun = true; // relay off to player 3
                     }
