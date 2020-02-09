@@ -46,8 +46,6 @@
 
     function init(){
 
-
-
         var canvasWidth = 1400;
         var canvasHeight = 800;
         var ctx = document.getElementById('gamecanvas').getContext('2d');
@@ -133,7 +131,7 @@
             let distance = ~~(playerState.distance - 10); // start BEHIND the player so it doesnt dissppear
             let xShift = (playerState.distance - 10 - distance) * pixelToM; // shift the drawing for smooth animation in floating point distances
             while(x <= canvasWidth) {
-                if(distance===playerState.maxDistance) {
+                if(distance===playerState.maxDistance && playerState.finisher) {
                     if(playerState.distance >= playerState.maxDistance) {
                         drawBgSprite("win", x, playerState.Y);
                     } else {
@@ -210,7 +208,9 @@
                 action: "idle", // idle, mark, set or running
                 runAnimCounter: 0, // which frame of runANim to use if rnning
                 distance: 0, //"distance" player has run in like, meters or something.
-                maxDistance: 100
+                maxDistance: 300
+                ,
+                finisher: true // if finished will the win?
             },
             player1 : {
                 X: 250,
@@ -220,7 +220,10 @@
                 action: "idle", // idle, mark, set or running
                 runAnimCounter: 0, // which frame of runANim to use if rnning
                 distance: 0, //"distance" player has run in like, meters or something.
-                maxDistance: 100
+                maxDistance: 100,
+                finisher: false, // if finished will the win?
+                buttonPushed: true, // if true, they will try and run, if false, then no
+                canRun:true // if true, then this player can run the relay race
             },
             player2 : {
                 X: 250,
@@ -229,8 +232,11 @@
                 name: "INT",
                 action: "idle", // idle, mark, set or running
                 runAnimCounter: 0, // which frame of runANim to use if rnning
-                distance: 0, //"distance" player has run in like, meters or something.
-                maxDistance: 100
+                distance: 100, //"distance" player has run in like, meters or something.
+                maxDistance: 200,
+                finisher: false, // if finished will the win?
+                buttonPushed: true, // if true, they will try and run, if false, then no
+                canRun:false
             },
             player3 : {
                 X: 250,
@@ -239,8 +245,11 @@
                 name: "IT",
                 action: "idle", // idle, mark, set or running
                 runAnimCounter: 0, // which frame of runANim to use if rnning
-                distance: 0, //"distance" player has run in like, meters or something.
-                maxDistance: 100
+                distance: 200, //"distance" player has run in like, meters or something.
+                maxDistance: 300,
+                finisher: false, // if finished will the win?
+                buttonPushed: true, // if true, they will try and run, if false, then no
+                canRun: false,
             },
         };
         const initialState = JSON.parse(JSON.stringify(state));
@@ -290,6 +299,7 @@
 
             // only do this every 3 frames
             if(framenum % 3 === 0) {
+                //draw logic
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight); // clear canvas
                 drawBackground();
                 drawPlayer(0);
@@ -301,22 +311,54 @@
                 // Game logic
 
                 // smooth animaton
-                if(state.cpu.targetX > state.cpu.X) state.cpu.X+=10;
+                if(state.cpu.targetX > state.cpu.X) state.cpu.X+=15;
                 else if(state.cpu.targetX < state.cpu.X) state.cpu.X--;
 
-                if(state.player1.targetX > state.player1.X) state.player1.X+=10;
+                if(state.player1.targetX > state.player1.X) state.player1.X+=15;
                 else if(state.player1.targetX < state.player1.X) state.player1.X--;
 
-                if(state.player2.targetX > state.player2.X) state.player2.X+=10;
+                if(state.player2.targetX > state.player2.X) state.player2.X+=15;
                 else if(state.player2.targetX < state.player2.X) state.player2.X--;
 
-                if(state.player3.targetX > state.player3.X) state.player3.X+=10;
+                if(state.player3.targetX > state.player3.X) state.player3.X+=15;
                 else if(state.player3.targetX < state.player3.X) state.player3.X--;
 
                 //CPU move
                 if(state.game.state === "game") {
+
+                    //move player if buttons pushed
+                    if(state.player1.canRun && state.player1.distance < state.player1.maxDistance) {
+                        if(state.player1.buttonPushed) {
+                            state.player1.distance +=0.33;
+                            state.player1.targetX = state.player1.distance > state.cpu.distance ? 750 : 250 ;
+                            state.player1.action = "running"
+                        } else {
+                            state.player1.action="idle";
+                        }
+                    }
+
+                    if(state.player2.canRun && state.player2.distance < state.player2.maxDistance) {
+                        if(state.player2.buttonPushed) {
+                            state.player2.distance +=0.33;
+                            state.player1.targetX = state.player2.distance > state.cpu.distance ? 750 : 250 ;;
+                            state.player2.action = "running"
+                        } else {
+                            state.player2.action="idle";
+                        }
+                    }
+
+                    if(state.player3.canRun && state.player3.distance < state.player3.maxDistance) {
+                        if(state.player3.buttonPushed) {
+                            state.player3.distance +=0.33;
+                            state.player1.targetX = state.player2.distance > state.cpu.distance ? 750 : 250 ;;
+                            state.player3.action = "running"
+                        } else {
+                            state.player3.action="idle";
+                        }
+                    }
+
                     //move CPU
-                    if(state.cpu.distance < state.cpu.maxDistance) state.cpu.distance +=0.33;
+                    if(state.cpu.distance < state.cpu.maxDistance) state.cpu.distance +=0.5;
                     //lose condition
                     else if(state.cpu.distance >= state.cpu.maxDistance) state.game.state = "lose";
                     //only win if player 3 is at the max
@@ -325,9 +367,11 @@
                     //stop player 1 and player 2 if they're at max distance, no run animation
                     if(state.player1.distance >= state.player1.maxDistance)  {
                         drawPlayerFinishLine(state.player1, ()=> state.player1.action = "idle");
+                        state.player2.canRun = true; // relay off to player 2
                     }
                     if(state.player2.distance >= state.player2.maxDistance)  {
                         drawPlayerFinishLine(state.player2, ()=> state.player2.action = "idle");
+                        state.player3.canRun = true; // relay off to player 3
                     }
                 }
                 else if(state.game.state === "lose") {
@@ -362,9 +406,6 @@
                     state = JSON.parse(JSON.stringify(initialState));
                     document.state = state;
                 }
-
-
-
             }
 
         }
@@ -392,8 +433,8 @@
                  setTimeout(()=>{ setAllPlayerStates("action", "mark"); document.getElementById("sndbeep").play(); }, 6000);
                  setTimeout(()=>{ setAllPlayerStates("action", "set"); document.getElementById("sndbeep").play(); }, 8000);
                  setTimeout(()=>{
-                     setAllPlayerStates("action", "running");
-                     setAllPlayerStates("targetX", 500);
+                     state.cpu.action="running"; // CPU is LIGHTNING FAST
+                     state.cpu.targetX= 500; // CPU is LIGHTNING FAST
                      state.game.state = "game";
                      document.getElementById("sndgun").play();
                      setTimeout(()=>document.getElementById("sndrun").play(), 500);
