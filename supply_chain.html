@@ -21,7 +21,13 @@
 </canvas>
 </div>
 
-
+<audio id="sndtitle" src="sounds/title.mp3" loop autoplay hidden > </audio>
+<audio id="sndbeep" src="sounds/beep.mp3" hidden > </audio>
+<audio id="sndrun" src="sounds/run.mp3" loop hidden> </audio>
+<audio id="sndgun" src="sounds/gun.mp3"  hidden> </audio>
+<audio id="sndstart" src="sounds/start.mp3"  hidden> </audio>
+<audio id="sndwin" src="sounds/win.mp3" hidden> </audio>
+<audio id="sndlose" src="sounds/game_over.mp3"  hidden> </audio>
 <div style="display:none;">
     <img id="cpu"
          src="/sprites/cpu.png" />
@@ -39,13 +45,7 @@
     <img id="arrowDown"
          src="/sprites/ArrowDown.png" />
 
-    <audio id="sndtitle" src="sounds/title.mp3" loop autoplay> </audio>
-    <audio id="sndbeep" src="sounds/beep.mp3" > </audio>
-    <audio id="sndrun" src="sounds/run.mp3" loop> </audio>
-    <audio id="sndgun" src="sounds/gun.mp3" > </audio>
-    <audio id="sndstart" src="sounds/start.mp3" > </audio>
-    <audio id="sndwin" src="sounds/win.mp3" > </audio>
-    <audio id="sndlose" src="sounds/game_over.mp3" > </audio>
+
 </div>
 
 <script>
@@ -212,7 +212,7 @@
             game : {
                 state : "menu",  //menu, idle, prep, game, lose, win, end
                 players: 3, // number of players
-                cheats: [], // cheats enabled
+                cpuHeadStart: 100, // ms of head start before the CPU starts
                 menu : {
                    whichMenu: "main", // main, cheats
                    selectedIdx: 0, // which row is selected
@@ -231,9 +231,10 @@
                 action: "idle", // idle, mark, set or running
                 runAnimCounter: 0, // which frame of runANim to use if rnning
                 distance: 0, //"distance" player has run in like, meters or something.
-                maxDistance: 300,
+                maxDistance: 100,
                 finisher: true, // if finished will the win?
                 drawOtherPlayers: false,
+                canRun: false
             },
             player1 : {
                 X: 250,
@@ -443,12 +444,15 @@
             // schedule nex draw
             window.requestAnimationFrame(draw);
             if(state.game.state === "menu" && framenum % 2 === 0) {
+                gamepadLogic();
+
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight); // clear canvas
                 drawMenu(framenum);
                 if(document.drawCrt) document.drawCrt();
             }
             if(state.game.state !== "menu" && framenum % 3 === 0) {
                 //draw logic
+                gamepadLogic();
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight); // clear canvas
 
                     drawBackground();
@@ -480,37 +484,33 @@
 
                     //move player if buttons pushed
                     if(state.player1.canRun && state.player1.distance < state.player1.maxDistance) {
-                        if(state.player1.buttonPushed) {
-                            state.player1.distance +=0.33;
-                            state.player1.targetX = (state.player1.maxDistance - state.player1.distance) < cpuDistLeft ? 750 : 250 ;
-                            state.player1.action = "running"
-                        } else {
-                            state.player1.action="idle";
-                        }
+                        if(state.player1.buttonPushed) state.player1.distance +=0.70;
+                        state.player1.distance +=0.05;
+                        state.player1.targetX = (state.player1.maxDistance - state.player1.distance) < cpuDistLeft ? 750 : 250 ;
+                        state.player1.action = "running";
+                        state.player1.buttonPushed = false;
+
                     }
 
                     if(state.player2.canRun && state.player2.distance < state.player2.maxDistance) {
-                        if(state.player2.buttonPushed) {
-                            state.player2.distance +=0.33;
-                            state.player2.targetX = (state.player2.maxDistance - state.player2.distance) < cpuDistLeft ? 750 : 250 ;
-                            state.player2.action = "running"
-                        } else {
-                            state.player2.action="idle";
-                        }
+                        if(state.player2.buttonPushed) state.player2.distance +=0.50;
+                        state.player2.distance +=0.10;
+                        state.player2.targetX = (state.player2.maxDistance - state.player2.distance) < cpuDistLeft ? 750 : 250 ;
+                        state.player2.action = "running";
+                        state.player2.buttonPushed = false;
+
                     }
 
                     if(state.player3.canRun && state.player3.distance < state.player3.maxDistance) {
-                        if(state.player3.buttonPushed) {
-                            state.player3.distance +=0.33;
-                            state.player3.targetX = (state.player3.maxDistance - state.player3.distance) < cpuDistLeft ? 750 : 250 ;
-                            state.player3.action = "running"
-                        } else {
-                            state.player3.action="idle";
-                        }
+                        if(state.player3.buttonPushed) state.player3.distance +=0.50;
+                        state.player3.distance +=0.10;
+                        state.player3.targetX = (state.player3.maxDistance - state.player3.distance) < cpuDistLeft ? 750 : 250 ;
+                        state.player3.action = "running";
+                        state.player3.buttonPushed = false;
                     }
 
                     //move CPU
-                    if(state.cpu.distance < state.cpu.maxDistance) state.cpu.distance +=0.5;
+                    if(state.cpu.canRun && state.cpu.distance < state.cpu.maxDistance) state.cpu.distance +=0.15;
                     //lose condition
                     else if(state.cpu.distance >= state.cpu.maxDistance) state.game.state = "lose";
                     //only win if player 3 is at the max
@@ -570,7 +570,6 @@
 
     init();
 
-
     // logic for starting the game itself
     function startGame(state) {
         state.game.state = "prep";
@@ -579,8 +578,11 @@
         setTimeout(()=>{ setAllPlayerStates("action", "mark"); document.getElementById("sndbeep").play(); }, 6000);
         setTimeout(()=>{ setAllPlayerStates("action", "set"); document.getElementById("sndbeep").play(); }, 8000);
         setTimeout(()=>{
-            state.cpu.action="running"; // CPU is LIGHTNING FAST
-            state.cpu.targetX= 500; // CPU is LIGHTNING FAST
+            setTimeout(()=> {
+                state.cpu.action="running"; // CPU is LIGHTNING FAST
+                state.cpu.targetX= 500; // CPU is LIGHTNING FAST
+                state.cpu.canRun = true;
+            }, state.game.cpuHeadStart);
             state.game.state = "game";
             document.getElementById("sndgun").play();
             setTimeout(()=>document.getElementById("sndrun").play(), 500);
@@ -617,9 +619,11 @@
                     switch(currentCode){
                         case "_CVD":
                             succ = true;
+                            state.game.cpuHeadStart = 15000;
                         break;
                         case "SBOM":
                             succ = true;
+                            setAllPlayerStates("canRun", true);
                         break;
                     }
                     if(succ) state.game.menu.cheatStatus = currentCode + " SUCCESS ";
@@ -667,7 +671,74 @@
        }
     });
 
+    //gamepad support
+    window.addEventListener("gamepadconnected", (event) => {
+        console.log("A gamepad connected:");
+        console.log(event.gamepad);
+    });
 
+    let buttonLastStatus = [Array(16).fill(false), Array(16).fill(false), Array(16).fill(false)];
+    let lastRunButtonPushed = ["B","B","B"];
+    function gamepadLogic() {
+        var gamepads = navigator.getGamepads();
+        // a button is "pushed" if it's last status was true(depressed) but is now false (released)
+        // in this way we only react when your finger is taken off of the button
+        let buttonsPushed = [Array(16).fill(false), Array(16).fill(false), Array(16).fill(false)];
+
+        //P1 menu selection logic
+        let state = document.state;
+        for(let i=0; i<3; i++)  {
+            if(gamepads[i] && gamepads[i].buttons){
+                for(let j=0; j<16; j++) {
+                    // see above note for logic with buttojn "pushing"
+                    if( buttonLastStatus[i][j] && !gamepads[i].buttons[j].pressed) buttonsPushed[i][j] = true;
+                    buttonLastStatus[i][j] = gamepads[i].buttons[j].pressed;
+                }
+            }
+        }
+
+        if(state.game.state === "menu") {
+            // B button
+            if(buttonsPushed[0][0]) state.game.menu.whichMenu = "main"; // back to main menu
+            // A button
+            else if(buttonsPushed[0][1]) selectionMade(state);
+            // up DPAD
+            else if(buttonsPushed[0][12]) state.game.menu.selectedIdx--;
+            // down DPAD
+            else if(buttonsPushed[0][13]) state.game.menu.selectedIdx++;
+            // left DPAD
+            else if(buttonsPushed[0][14]) state.game.menu.selectedCol--;
+            // right DPAD
+            else if(buttonsPushed[0][15]) state.game.menu.selectedCol++;
+
+        }
+        else if(state.game.state === "end") {
+            //reset
+            for(let i=0; i<3; i++) {
+                // start button
+                if (buttonsPushed[i][9]) {
+                    state.game.state = "reset";
+                    document.getElementById("sndtitle").play();
+                }
+            }
+        }  else {
+
+            for(let i=0; i<3; i++) {
+
+                if(buttonsPushed[i][0]) {
+                    if(lastRunButtonPushed[i] === "A") setAllPlayerStates("buttonPushed", true);
+                    lastRunButtonPushed[i] = "B";
+                    console.log("b")
+                }
+                else if(buttonsPushed[i][1]) {
+                    if(lastRunButtonPushed[i] === "B") setAllPlayerStates("buttonPushed", true);
+                    lastRunButtonPushed[i] = "A";
+                    console.log("A")
+                }
+            }
+        }
+
+    }
 
 </script>
 <!-- CRT screen effect -->
