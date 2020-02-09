@@ -202,7 +202,7 @@
 
         let state = {
             game : {
-              state : "idle"  //idle, prep, game, lose, win, end
+              state : "menu"  //menu, idle, prep, game, lose, win, end
             },
             cpu : {
                 X: 250,  // the x where the player WILL be drawn
@@ -300,6 +300,11 @@
 
         }
 
+        function drawMenu() {
+            ctx.fillStyle = "#1A1A1A";
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight); // clear canvas
+        }
+
         // MAIN DRAW FUNC
         function draw() {
             framenum++;
@@ -311,11 +316,18 @@
             if(framenum % 3 === 0) {
                 //draw logic
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight); // clear canvas
-                drawBackground();
-                drawPlayer(0);
-                drawPlayer(1);
-                drawPlayer(2);
-                drawPlayer(3);
+
+                if(state.game.state === "menu") {
+                    drawMenu();
+                }
+                else {
+                    drawBackground();
+                    drawPlayer(0);
+                    drawPlayer(1);
+                    drawPlayer(2);
+                    drawPlayer(3);
+                }
+
                 if(document.drawCrt) document.drawCrt();
 
                 // Game logic
