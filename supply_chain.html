@@ -28,6 +28,7 @@
 <audio id="sndstart" src="sounds/start.mp3"  hidden> </audio>
 <audio id="sndwin" src="sounds/win.mp3" hidden> </audio>
 <audio id="sndlose" src="sounds/game_over.mp3"  hidden> </audio>
+<audio id="speech" src="sounds/speech.mp3"  hidden> </audio>
 <div style="display:none;">
     <img id="cpu"
          src="/sprites/cpu.png" />
@@ -69,6 +70,8 @@
         var arrowDownSprite = document.getElementById("arrowDown");
 
         var spriteScale = 2.5;
+
+        var speechSnd = document.getElementById("speech");
 
         // SPRITE HELPER FUNCS
         function drawSprite(img, canvasX, canvasY, frameX, frameY, width, height, scale) {
@@ -477,8 +480,12 @@
                         Y+=50;
                     }
 
-                    // advance
-                    helper.pos+=1;
+                    if(pos <=0) {
+                        // advance
+                        helper.pos+=1.5;
+                        speechSnd.play();
+                    }
+
                 }
                 break;
             }
