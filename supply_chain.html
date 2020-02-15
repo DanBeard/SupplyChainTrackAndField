@@ -53,6 +53,29 @@
 </div>
 
 <script>
+    // helper and & "walkthrough" text
+    const baseHelperText = ["Welcome to Supply Chain Sprint.",
+        "The malicious 'red team' hacker needs to exploit a vulnerability",
+        "Meanwhile the 'blue team' protectors need to run a relay race",
+        "",
+        "",
+        "1st: Implementors need to develop a patch for the library",
+        "2nd: Integrators need to include that patch in their program",
+        "3rd: IT on site needs to update the library and apply it to the system"
+    ];
+    const cvdHelperText = ["_CVD cheat is active",
+        "",
+        "You have a Coordinated Vulnerability Disclosure (CVD) Program",
+        "Blue team gets a head start on the patches before the Red Team",
+        "can start developing an exploit for the vulnerability"
+    ];
+    const sbomHelperText = ["SBOM cheat is active",
+        "",
+        "You have an accurate Software Bill of Materials (SBOM) ",
+        "This means Integrators and IT can start mitigating ASAP. ",
+        "Blue team no longer runs a relay race. All players start at once"
+    ];
+
 
     function init(){
 
@@ -102,6 +125,7 @@
 
             };
             var info =  sprite_info[state];
+            if(!info) return;
             var sprites = playerSprites[playerIdx];
             drawSprite(sprites, canvasX, canvasY,info[0], info[1], info[2], info[3], spriteScale);
         }
@@ -171,6 +195,7 @@
 
 
             let x = 0;
+            let y= 0;
 
             x=0;
             while(x<=canvasWidth) {
@@ -207,6 +232,26 @@
             drawDistanceMarkers(state.player1);
             drawDistanceMarkers(state.player2);
             drawDistanceMarkers(state.player3);
+
+            // draw the sky text
+            x=canvasWidth/2 -110; y=150;
+            ctx.fillStyle = "black";
+            ctx.strokeStyle = "blue";
+            ctx.lineWidth = 5;
+            ctx.beginPath();
+            ctx.fillRect(x-300, y-100, 600, 150);
+            ctx.strokeRect(x-300, y-100, 600, 150);
+            // now the text
+            ctx.font = "30px \"Press Start 2P\", Monaco, monospace";
+            ctx.fillStyle = "white";
+
+            ctx.textAlign = "center";
+            ctx.textBaseline = 'alphabetic';
+            for(let i=0; i<state.game.skyText.length; i++ ) {
+                ctx.fillText(state.game.skyText[i], x, y - 50 );
+                y+=50;
+            }
+
         }
 
         //STATE
@@ -214,20 +259,15 @@
                     // base, run, ahead, final
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_";
 
-        const baseHelperText = ["Welcome to Supply Chain Sprint.",
-            "The malicious 'red team' hacker needs to exploit a vulnerability",
-            "Meanwhile the 'blue team' protectors need to run a relay race",
-            "",
-            "",
-            "1st: Implementors need to develop a patch for the library",
-            "2nd: Integrators need to include that patch in their program",
-            "3rd: IT on site needs to update the library and apply it to the system"
-        ];
+
         let state = {
             game : {
                 state : "menu",  //menu, , idle, prep, game, lose, win, end
                 players: 3, // number of players
                 cpuHeadStart: 100, // ms of head start before the CPU starts
+                autoplay: false,
+                cheatsActive: [""],
+                skyText : ["Supply Chain Sprint", "Typical Process", ""],
                 menu : {
                    whichMenu: "main", // main, cheats, helper
                    selectedIdx: 0, // which row is selected
@@ -319,7 +359,7 @@
                 playerState.runAnimCounter = (playerState.runAnimCounter + 1) % 6; // wrap around
             }
             else if(playerState.action === "win" || playerState.action === "lose") {
-                let animCount = (~~(framenum % 4) /2);
+                let animCount = ~~((framenum % 4) /2);
                 drawPlayerSprite(playernum, playerState.action+animCount, X,Y);
 
             }
@@ -345,7 +385,6 @@
         function drawMenu(framenum) {
             ctx.fillStyle = "#1A1A1A";
             ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-            if(framenum % 25 === 0) state.game.menu.blinkSelection = !state.game.menu.blinkSelection;
             switch(state.game.menu.whichMenu) {
                 /*****************
                  *   MAIN MENU   *
@@ -458,7 +497,7 @@
                 /*****************
                  *   HELPER MENU *
                  ****************/
-                case "helper": {
+                case "intro": {
                     ctx.drawImage(document.getElementById("corman"), 50, 30);
                     ctx.font = "15px \"Press Start 2P\", Monaco, monospace";
                     ctx.fillStyle = "white";
@@ -472,7 +511,7 @@
                     }
                     const  text = helper.text[helper.page];
                     let Y = 300;
-                    let pos = helper.pos;
+                    let pos = ~~(helper.pos);
 
                     for(let i=0; i< text.length && pos >=0; i++) {
                         ctx.fillText(text[i].slice(0, pos), 50, Y);
@@ -480,10 +519,16 @@
                         Y+=50;
                     }
 
+                    // advance
+                    helper.pos+=2;
+                    // only play snd if we actually 'typed' something
                     if(pos <=0) {
-                        // advance
-                        helper.pos+=1.5;
                         speechSnd.play();
+                    }
+                    // auto advance after a time if in autoplay or after a LONG time in normal mode
+                    else if ((pos > 100 && state.game.autoplay) || pos > 5000) {
+                        helper.page++;
+                        helper.pos = 0;
                     }
 
                 }
@@ -492,12 +537,63 @@
 
         }
 
+        //AUTO PLAY HELPERS
+        // cheat order for autoplay
+        // This can't be in the main state object because it must survive resets
+        const autoplayCheatOrder = [
+            null,
+            ["_", "C", "V", "D"],
+            ["S", "B", "O", "M"],
+        ];
+        let lastAutoplayCheat=0;
+        // BIG 'OL PRESS START for autoplay
+        function drawAutoPlay() {
+            const x = canvasWidth/2 -110;
+            const y = canvasHeight/2 + 50;
+            const text = "PRESS START TO PLAY";
+
+            ctx.font = "30px \"Press Start 2P\", Monaco, monospace";
+            ctx.fillStyle = "black";
+            ctx.textAlign = "center";
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y);
+        }
+
         // MAIN DRAW FUNC
         function draw() {
             framenum++;
             framenum = framenum % 1000; // 1000 options to slow frames down
             // schedule nex draw
             window.requestAnimationFrame(draw);
+
+            // let anything that needs to blink know that it's time to blink
+            if(framenum % 50 === 0) state.game.menu.blinkSelection = !state.game.menu.blinkSelection;
+
+            // autplay draw logic
+            // autoplay logic
+            if(state.game.autoplay) {
+                // everyone runs at half speed in autoplay
+                setAllPlayerStates("buttonPushed", framenum % 2 === 0);
+                // if we're in the main menu, enable a cheat and start the game
+                if(state.game.state === "menu" && state.game.menu.whichMenu === "main") {
+                    let cheat = autoplayCheatOrder[lastAutoplayCheat++ % autoplayCheatOrder.length];
+                    if(cheat) {
+                        state.game.menu.whichMenu = "cheats";
+                        state.game.menu.currentCheat = cheat;
+                        selectionMade(state);
+                    }
+                    // now start the game
+                    setTimeout(()=> state.game.menu.whichMenu = "intro", 1);
+
+                } else if(state.game.state === "end") {
+                    // temporary state to give some delay
+                    state.game.state = "resetting";
+                    setTimeout(()=> {
+                        state.game.state="reset"
+                    }, 5000);
+                }
+            }
+            // menu draw logic
             if(state.game.state === "menu" && framenum % 5 === 0) {
                 gamepadLogic();
 
@@ -505,6 +601,7 @@
                 drawMenu(framenum);
                 if(document.drawCrt) document.drawCrt();
             }
+            // game draw logic
             if(state.game.state !== "menu" && framenum % 3 === 0) {
                 //draw logic
                 gamepadLogic();
@@ -515,12 +612,16 @@
                     drawPlayer(1);
                     drawPlayer(2);
                     drawPlayer(3);
+                if(state.game.autoplay) {
+                    // blink the "PRESS START TO PLAY"
+                    if (state.game.menu.blinkSelection) drawAutoPlay(framenum);
+                }
+
                 if(document.drawCrt) document.drawCrt();
 
                 // Game logic
-
-                //CPU move
                 if(state.game.state === "game") {
+
 
                     // smooth animaton
                     if(state.cpu.targetX > state.cpu.X) state.cpu.X+=15;
@@ -565,7 +666,7 @@
                     }
 
                     //move CPU
-                    if(state.cpu.canRun && state.cpu.distance < state.cpu.maxDistance) state.cpu.distance +=0.15;
+                    if(state.cpu.canRun && state.cpu.distance < state.cpu.maxDistance) state.cpu.distance +=0.20;
                     //lose condition
                     else if(state.cpu.distance >= state.cpu.maxDistance) state.game.state = "lose";
                     //only win if player 3 is at the max
@@ -594,6 +695,7 @@
                     setAllPlayerStates("action", "lose");
                     state.cpu.action = "running"; // he's still running thru the finish line
                     document.getElementById("sndrun").pause();
+                    state.game.skyText[2] = "YOU LOSE!";
 
                 }
                 else if (state.game.state === "win") {
@@ -610,10 +712,14 @@
                     state.player3.action = "running";
 
                     document.getElementById("sndrun").pause();
+                    state.game.skyText[2] = "YOU WIN!";
                 }
                 else if(state.game.state === "reset") {
+                    // autoplay should survive reset
+                    let autoplay = state.game.autoplay;
                     state = JSON.parse(JSON.stringify(initialState));
                     document.state = state;
+                    state.game.autoplay = autoplay;
                 }
             }
 
@@ -650,11 +756,11 @@
                 switch(state.game.menu.selectedIdx) {
                     case 0:
                         state.game.players = 1;
-                        state.game.menu.whichMenu = "helper";
+                        state.game.menu.whichMenu = "intro";
                     break;
                     case 1:
                         state.game.players = 3;
-                        state.game.whichMenu = "helper";
+                        state.game.whichMenu = "intro";
                     break;
                     case 2:
                         state.game.menu.whichMenu = "cheats";
@@ -669,27 +775,34 @@
                     state.game.menu.whichMenu = "main";
                     state.game.menu.selectedCol = 0;
                     state.game.menu.selectedIdx = 0;
-                }else {
+                } else {
                     // CHEATS LOGIC
                     const currentCode = state.game.menu.currentCheat.join("");
                     let succ = false;
                     switch(currentCode){
                         case "_CVD":
                             succ = true;
-                            state.game.cpuHeadStart = 18000;
-
+                            state.game.cpuHeadStart = 19000;
+                            // treat the text array as immutable so reset works
+                            state.game.menu.helper.text = state.game.menu.helper.text.concat([cvdHelperText]);
+                            state.game.cheatsActive.push("_CVD");
+                            state.game.skyText[1] = "CVD Process";
                         break;
                         case "SBOM":
                             succ = true;
                             setAllPlayerStates("canRun", true);
                             setAllPlayerStates("finisher", true);
+                            // treat the text array as immutable so reset works
+                            state.game.menu.helper.text = state.game.menu.helper.text.concat([sbomHelperText]);
+                            state.game.cheatsActive.push("SBOM");
+                            state.game.skyText[1] = "SBOM Process";
                         break;
                     }
                     if(succ) state.game.menu.cheatStatus = currentCode + " SUCCESS ";
                     else state.game.menu.cheatStatus = currentCode + " FAILED ";
                 }
             }
-            else if(state.game.menu.whichMenu === "helper") {
+            else if(state.game.menu.whichMenu === "intro") {
                 state.game.menu.helper.page++;
             }
         }
@@ -703,7 +816,8 @@
     }
     document.addEventListener('keydown', function(event) {
         const state = document.state;
-        console.log(event.key)
+        console.log(event.key);
+        lastGamepadTimestamp = event.timeStamp;
        switch(event.key) {
          case " ":
              if(state.game.state === "idle") {
@@ -741,8 +855,20 @@
     // Button pushing logic
     let buttonLastStatus = [Array(16).fill(false), Array(16).fill(false), Array(16).fill(false)];
     let lastRunButtonPushed = ["B","B","B"];
+    let lastGamepadTimestamp = 0;
     function gamepadLogic() {
         var gamepads = navigator.getGamepads();
+        // store the timestamp and save the cycles if nothing's changed
+        let newButton =  false;
+        for(let i=0; i< gamepads.length; i++) {
+            if(gamepads[i]) {
+                if(gamepads[i].timestamp > lastGamepadTimestamp) {
+                    newButton = true;
+                    lastGamepadTimestamp = gamepads[i].timestamp
+                }
+            }
+        }
+        if(!newButton) return;
         // a button is "pushed" if it's last status was true(depressed) but is now false (released)
         // in this way we only react when your finger is taken off of the button
         let buttonsPushed = [Array(16).fill(false), Array(16).fill(false), Array(16).fill(false)];
@@ -756,11 +882,18 @@
                     if(gamepads[i].buttons[j]) {
                         if( buttonLastStatus[i][j] && !gamepads[i].buttons[j].pressed) buttonsPushed[i][j] = true;
                         buttonLastStatus[i][j] = gamepads[i].buttons[j].pressed;
-                        //hacking together axis if that is the directions instead of DPAD
+
                     }
                 }
+                //hacking together axis if that is the directions instead of DPAD
                 if(gamepads[i].axes[1] === -1) buttonLastStatus[i][12] = true;
             }
+        }
+
+        // autoplay. If start is ever pushed, turn autoplay off
+        if(buttonsPushed[0][9] && state.game.autoplay){
+            state.game.autoplay = false;
+            state.game.state = "reset";
         }
 
         //P1 menu selection logic
@@ -808,6 +941,15 @@
         }
 
     }
+
+    function autoplayTrigger() {
+        const now = performance.now();
+        if(now - lastGamepadTimestamp > 15000) {
+            document.state.game.autoplay = true;
+        }
+    }
+
+    setInterval(autoplayTrigger, 5000);
 
 </script>
 <!-- CRT screen effect -->
