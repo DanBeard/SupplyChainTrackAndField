@@ -292,7 +292,7 @@
                 runAnimCounter: 0, // which frame of runANim to use if rnning
                 distance: 200, //"distance" player has run in like, meters or something.
                 maxDistance: 300,
-                finisher: false, // if finished will the win?
+                finisher: true, // if finished will the win?
                 buttonPushed: true, // if true, they will try and run, if false, then no
                 canRun: false,
                 drawOtherPlayers: false
@@ -491,7 +491,7 @@
             framenum = framenum % 1000; // 1000 options to slow frames down
             // schedule nex draw
             window.requestAnimationFrame(draw);
-            if(state.game.state === "menu" && framenum % 2 === 0) {
+            if(state.game.state === "menu" && framenum % 5 === 0) {
                 gamepadLogic();
 
                 ctx.clearRect(0, 0, canvasWidth, canvasHeight); // clear canvas
@@ -669,12 +669,13 @@
                     switch(currentCode){
                         case "_CVD":
                             succ = true;
-                            state.game.cpuHeadStart = 15000;
+                            state.game.cpuHeadStart = 18000;
 
                         break;
                         case "SBOM":
                             succ = true;
                             setAllPlayerStates("canRun", true);
+                            setAllPlayerStates("finisher", true);
                         break;
                     }
                     if(succ) state.game.menu.cheatStatus = currentCode + " SUCCESS ";
@@ -730,6 +731,7 @@
         console.log(event.gamepad);
     });
 
+    // Button pushing logic
     let buttonLastStatus = [Array(16).fill(false), Array(16).fill(false), Array(16).fill(false)];
     let lastRunButtonPushed = ["B","B","B"];
     function gamepadLogic() {
@@ -738,18 +740,23 @@
         // in this way we only react when your finger is taken off of the button
         let buttonsPushed = [Array(16).fill(false), Array(16).fill(false), Array(16).fill(false)];
 
-        //P1 menu selection logic
+
         let state = document.state;
         for(let i=0; i<3; i++)  {
             if(gamepads[i] && gamepads[i].buttons){
                 for(let j=0; j<16; j++) {
                     // see above note for logic with buttojn "pushing"
-                    if( buttonLastStatus[i][j] && !gamepads[i].buttons[j].pressed) buttonsPushed[i][j] = true;
-                    buttonLastStatus[i][j] = gamepads[i].buttons[j].pressed;
+                    if(gamepads[i].buttons[j]) {
+                        if( buttonLastStatus[i][j] && !gamepads[i].buttons[j].pressed) buttonsPushed[i][j] = true;
+                        buttonLastStatus[i][j] = gamepads[i].buttons[j].pressed;
+                        //hacking together axis if that is the directions instead of DPAD
+                    }
                 }
+                if(gamepads[i].axes[1] === -1) buttonLastStatus[i][12] = true;
             }
         }
 
+        //P1 menu selection logic
         if(state.game.state === "menu") {
             // B button
             if(buttonsPushed[0][0]) state.game.menu.whichMenu = "main"; // back to main menu
@@ -765,6 +772,7 @@
             else if(buttonsPushed[0][15]) state.game.menu.selectedCol++;
 
         }
+        // game reset button push logic (Push start to reset)
         else if(state.game.state === "end") {
             //reset
             for(let i=0; i<3; i++) {
@@ -774,6 +782,7 @@
                     document.getElementById("sndtitle").play();
                 }
             }
+        // in-game running logic (alternate A and B to run faster)
         }  else {
 
             for(let i=0; i<3; i++) {
