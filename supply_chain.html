@@ -30,6 +30,8 @@
 <audio id="sndlose" src="sounds/game_over.mp3"  hidden> </audio>
 <audio id="speech" src="sounds/speech.mp3"  hidden> </audio>
 <div style="display:none;">
+    <img id="logo"
+         src="/images/cyberprotek_dark.png" />
     <img id="cpu"
          src="/sprites/cpu.png" />
     <img id="player1"
@@ -91,6 +93,7 @@
         var bgSprites = document.getElementById('bg');
         var arrowUpSprite = document.getElementById("arrowUp");
         var arrowDownSprite = document.getElementById("arrowDown");
+        var logo = document.getElementById("logo");
 
         var spriteScale = 2.5;
 
@@ -395,6 +398,10 @@
                     else if(state.game.menu.selectedIdx > 2) state.game.menu.selectedIdx = 2;
 
                     const middle = canvasWidth / 2 - 110;
+                    // DRAW LOGO
+                    ctx.drawImage(logo, middle-90,  50 , 180, 100);
+
+
                     ctx.font = "50px \"Press Start 2P\", Monaco, monospace";
                     ctx.fillStyle = "white";
                     ctx.textBaseline = 'middle';
@@ -715,6 +722,7 @@
                     state.game.skyText[2] = "YOU WIN!";
                 }
                 else if(state.game.state === "reset") {
+                    document.getElementById("sndrun").pause();
                     // autoplay should survive reset
                     let autoplay = state.game.autoplay;
                     state = JSON.parse(JSON.stringify(initialState));
@@ -855,7 +863,7 @@
     // Button pushing logic
     let buttonLastStatus = [Array(16).fill(false), Array(16).fill(false), Array(16).fill(false)];
     let lastRunButtonPushed = ["B","B","B"];
-    let lastGamepadTimestamp = 0;
+    let lastGamepadTimestamp =  performance.now();
     function gamepadLogic() {
         var gamepads = navigator.getGamepads();
         // store the timestamp and save the cycles if nothing's changed
