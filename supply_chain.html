@@ -45,6 +45,9 @@
     <img id="arrowDown"
          src="/sprites/ArrowDown.png" />
 
+    <img id="corman"
+         src="/images/corman.jpg" />
+
 
 </div>
 
@@ -208,19 +211,35 @@
                     // base, run, ahead, final
         const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ_";
 
+        const baseHelperText = ["Welcome to Supply Chain Sprint.",
+            "The malicious 'red team' hacker needs to exploit a vulnerability",
+            "Meanwhile the 'blue team' protectors need to run a relay race",
+            "",
+            "",
+            "1st: Implementors need to develop a patch for the library",
+            "2nd: Integrators need to include that patch in their program",
+            "3rd: IT on site needs to update the library and apply it to the system"
+        ];
         let state = {
             game : {
-                state : "menu",  //menu, idle, prep, game, lose, win, end
+                state : "menu",  //menu, , idle, prep, game, lose, win, end
                 players: 3, // number of players
                 cpuHeadStart: 100, // ms of head start before the CPU starts
                 menu : {
-                   whichMenu: "main", // main, cheats
+                   whichMenu: "main", // main, cheats, helper
                    selectedIdx: 0, // which row is selected
                    selectedCol: 0, // which COLUMN is selected (for cheat codes)
                    blinkSelection: true,
                    currentCheat: ["A","A","A","A"], // the current cheat code to enter
 
-                    cheatStatus: "" // for "CHEAT accepted" or "CHEAT DENIED"
+                    cheatStatus: "", // for "CHEAT accepted" or "CHEAT DENIED"
+
+                    helper: {
+                        text : [baseHelperText], // each string is it's own page
+                        pos: 0, // position of the helper text to draw
+                        page: 0 // the PAGE that we're on (idx into helperText)
+                    }
+
                 }
             },
             cpu : {
@@ -433,6 +452,35 @@
 
                 }
                 break;
+                /*****************
+                 *   HELPER MENU *
+                 ****************/
+                case "helper": {
+                    ctx.drawImage(document.getElementById("corman"), 50, 30);
+                    ctx.font = "15px \"Press Start 2P\", Monaco, monospace";
+                    ctx.fillStyle = "white";
+                    ctx.textAlign = 'left';
+                    const helper = state.game.menu.helper;
+                    // if we've gone past the helper text
+                    if(helper.page >= helper.text.length) {
+                        helper.page = 0;
+                        startGame(state);
+                        return;
+                    }
+                    const  text = helper.text[helper.page];
+                    let Y = 300;
+                    let pos = helper.pos;
+
+                    for(let i=0; i< text.length && pos >=0; i++) {
+                        ctx.fillText(text[i].slice(0, pos), 50, Y);
+                        pos -= text[i].length;
+                        Y+=50;
+                    }
+
+                    // advance
+                    helper.pos+=1;
+                }
+                break;
             }
 
         }
@@ -595,10 +643,12 @@
                 switch(state.game.menu.selectedIdx) {
                     case 0:
                         state.game.players = 1;
-                        return startGame(state);
+                        state.game.menu.whichMenu = "helper";
+                    break;
                     case 1:
                         state.game.players = 3;
-                        return startGame(state);
+                        state.game.whichMenu = "helper";
+                    break;
                     case 2:
                         state.game.menu.whichMenu = "cheats";
                         state.game.menu.currentCheat =  ["A","A","A","A"];
@@ -620,6 +670,7 @@
                         case "_CVD":
                             succ = true;
                             state.game.cpuHeadStart = 15000;
+
                         break;
                         case "SBOM":
                             succ = true;
@@ -629,7 +680,9 @@
                     if(succ) state.game.menu.cheatStatus = currentCode + " SUCCESS ";
                     else state.game.menu.cheatStatus = currentCode + " FAILED ";
                 }
-
+            }
+            else if(state.game.menu.whichMenu === "helper") {
+                state.game.menu.helper.page++;
             }
         }
     }
