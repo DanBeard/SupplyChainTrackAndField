@@ -94,14 +94,31 @@
 
 <script>
     // helper and & "walkthrough" text
-    const baseHelperText = ["Welcome to Supply Chain Sprint.",
-        "The malicious 'red team' hacker needs to exploit a vulnerability",
-        "Meanwhile the 'blue team' protectors need to run a relay race",
+    const baseHelperText = [ "Welcome to Supply Chain Sprint. ",
+        "The game where you race to secure your software supply chain",
+        " ",
+        "Rules:",
+        "  A critical vulnerability in a common library was just published!",
+        "  The malicious 'red team' hacker needs to exploit a vulnerability",
+        "  Meanwhile the 'blue team' protectors need to develop and deploy a patch",
         "",
+        "To Patch:",
+        "   1st: Implementors need to develop a patch for the library",
+        "   2nd: Integrators need to include that patch in their program",
+        "   3rd: IT on site needs to apply the patch",
         "",
-        "1st: Implementors need to develop a patch for the library",
-        "2nd: Integrators need to include that patch in their program",
-        "3rd: IT on site needs to update the library and apply it to the system"
+        "CAN YOU HELP THE BLUE TEAM PATCH BEFORE AN EXPLOIT IS RELEASED?"
+    ];
+    const baseHelperText2 = ["",
+        "",
+        "Once a vulnerability is KNOWN:",
+        "   MeanTimeToExploitation is measured in Days",
+        "   Collective MeanTimeToRemediation is measured in Months or Years.",
+        "",
+        "So remember:",
+        "   Red team only needs to get to the 1st finish line to win",
+        "   Blue team needs to work together & get to the 3rd finish line to win"
+
     ];
     const cvdHelperText = ["_CVD cheat is active",
         "",
@@ -319,7 +336,7 @@
                     cheatStatus: "", // for "CHEAT accepted" or "CHEAT DENIED"
 
                     helper: {
-                        text : [baseHelperText], // each string is it's own page
+                        text : [baseHelperText, baseHelperText2], // each string is it's own page
                         pos: 0, // position of the helper text to draw
                         page: 0 // the PAGE that we're on (idx into helperText)
                     }
@@ -561,7 +578,7 @@
                     for(let i=0; i< text.length && pos >=0; i++) {
                         ctx.fillText(text[i].slice(0, pos), 50, Y);
                         pos -= text[i].length;
-                        Y+=50;
+                        Y+=30;
                     }
 
                     // advance
@@ -571,7 +588,7 @@
                         speechSnd.play();
                     }
                     // auto advance after a time if in autoplay or after a LONG time in normal mode
-                    else if ((pos > 100 && state.game.autoplay) || pos > 5000) {
+                    else if ((pos > 300 && state.game.autoplay) || pos > 5000) {
                         helper.page++;
                         helper.pos = 0;
                     }
@@ -618,7 +635,7 @@
             // autoplay logic
             if(state.game.autoplay) {
                 // everyone runs at half speed in autoplay
-                setAllPlayerStates("buttonPushed", framenum % 2 === 0);
+                setAllPlayerStates("buttonPushed", framenum % 5 === 0);
                 // if we're in the main menu, enable a cheat and start the game
                 if(state.game.state === "menu" && state.game.menu.whichMenu === "main") {
                     let cheat = autoplayCheatOrder[lastAutoplayCheat++ % autoplayCheatOrder.length];
@@ -666,20 +683,19 @@
 
                 // Game logic
                 if(state.game.state === "game") {
-
-
+                    
                     // smooth animaton
-                    if(state.cpu.targetX > state.cpu.X) state.cpu.X+=15;
+                    if(state.cpu.targetX > state.cpu.X) state.cpu.X+=5;
                     else if(state.cpu.targetX < state.cpu.X) state.cpu.X--;
 
-                    if(state.player1.targetX > state.player1.X) state.player1.X+=15;
-                    else if(state.player1.targetX < state.player1.X) state.player1.X--;
+                    if(state.player1.targetX > state.player1.X) state.player1.X+=4;
+                    else if(state.player1.targetX < state.player1.X) state.player1.X-=2;
 
-                    if(state.player2.targetX > state.player2.X) state.player2.X+=15;
-                    else if(state.player2.targetX < state.player2.X) state.player2.X--;
+                    if(state.player2.targetX > state.player2.X) state.player2.X+=4;
+                    else if(state.player2.targetX < state.player2.X) state.player2.X-=2;
 
-                    if(state.player3.targetX > state.player3.X) state.player3.X+=15;
-                    else if(state.player3.targetX < state.player3.X) state.player3.X--;
+                    if(state.player3.targetX > state.player3.X) state.player3.X+=4;
+                    else if(state.player3.targetX < state.player3.X) state.player3.X-=2;
 
                     const cpuDistLeft = (state.cpu.maxDistance - state.cpu.distance);
 
@@ -990,7 +1006,7 @@
 
     function autoplayTrigger() {
         const now = performance.now();
-        if(now - lastGamepadTimestamp > 15000) {
+        if(document.state.game.state === "menu" && now - lastGamepadTimestamp > 15000) {
             document.state.game.autoplay = true;
         }
     }
