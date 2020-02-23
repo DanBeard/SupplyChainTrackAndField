@@ -139,7 +139,7 @@
         var canvasWidth = 1400;
         var canvasHeight = 800;
         var ctx = document.getElementById('gamecanvas').getContext('2d');
-        const playerSprites = [
+        const playerSpriteSheets = [
             document.getElementById('cpu'),
             document.getElementById('player1'),
             document.getElementById('player2'),
@@ -154,6 +154,42 @@
 
         var speechSnd = document.getElementById("speech");
 
+        // create pre-rendered sprite canvases
+        var player_sprite_info =  {
+            idle:  [0, 4, 19, 32],
+            mark: [176, 4, 29, 32],
+            set: [208, 4, 32, 32],
+            run0:  [2, 40, 23, 32],
+            run1:  [25, 40, 23, 32],
+            run2:  [46, 40, 23, 32],
+            run3:  [72, 40, 23, 32],
+            run4:  [96, 45, 31, 28],
+            run5:  [130, 41, 31, 32],
+            win0: [108, 172, 25, 32],
+            win1: [136, 172, 25, 32],
+            lose0: [204, 172, 17, 32],
+            lose1: [224, 172, 25, 32],
+        };
+        const player_sprites = [];
+        for(let i=0; i< playerSpriteSheets.length; i++) {
+            const m_sprites = {};
+            for(const k in player_sprite_info){
+                const sprite_info = player_sprite_info[k];
+                const temp_canvas = document.createElement('canvas');
+                // shrinkwrap this canvas around the sprite
+                const scaledWidth = sprite_info[2]*spriteScale; const scaledHeight = sprite_info[3]*spriteScale;
+                temp_canvas.width = scaledWidth; temp_canvas.height = scaledHeight;
+                const temp_ctx = temp_canvas.getContext("2d");
+                // draw the sprite to a canvas all by itself
+                temp_ctx.drawImage(playerSpriteSheets[i],
+                    sprite_info[0] , sprite_info[1], sprite_info[2], sprite_info[3],
+                    0,0, scaledWidth, scaledHeight);
+                m_sprites[k] = temp_canvas;
+            }
+            player_sprites.push(m_sprites);
+        }
+
+
         // SPRITE HELPER FUNCS
         function drawSprite(img, canvasX, canvasY, frameX, frameY, width, height, scale) {
             var scaledWidth = scale * width;
@@ -164,32 +200,11 @@
         }
 
         function drawPlayerSprite(playerIdx, state, canvasX, canvasY) {
-            //[x,y,width]
-            var sprite_info = {
-                idle:  [0, 4, 19, 32],
-                mark: [176, 4, 29, 32],
-                set: [208, 4, 32, 32],
-                run0:  [2, 40, 23, 32],
-                run1:  [25, 40, 23, 32],
-                run2:  [46, 40, 23, 32],
-                run3:  [72, 40, 23, 32],
-                run4:  [96, 45, 31, 28],
-                run5:  [130, 41, 31, 32],
-                win0: [108, 172, 25, 32],
-                win1: [136, 172, 25, 32],
-                lose0: [204, 172, 17, 32],
-                lose1: [224, 172, 25, 32],
-
-
-            };
-            var info =  sprite_info[state];
-            if(!info) return;
-            var sprites = playerSprites[playerIdx];
-            drawSprite(sprites, canvasX, canvasY,info[0], info[1], info[2], info[3], spriteScale);
+            ctx.drawImage(player_sprites[playerIdx][state], canvasX, canvasY);
         }
 
-        function drawBgSprite(sprite, canvasX, canvasY) {
-            var sprite_info = {
+        function drawBgSprite(bg_ctx, sprite, canvasX, canvasY) {
+            let sprite_info = {
                 track: [3, 0, 28, 41],
                 finish: [88, 0, 21, 41],
                 win: [112, 0, 21, 41],
@@ -199,8 +214,13 @@
                 fansFlash: [149, 110, 28, 22],
 
             };
-            var info =  sprite_info[sprite];
-            drawSprite(bgSprites, canvasX, canvasY,info[0], info[1], info[2], info[3], spriteScale);
+            let info =  sprite_info[sprite];
+            const scaledWidth = spriteScale *  info[2];
+            const scaledHeight = spriteScale * info[3];
+            bg_ctx.drawImage(bgSprites,
+                info[0], info[1], info[2], info[3],
+                canvasX, canvasY, scaledWidth, scaledHeight);
+            //drawSprite(bgSprites, canvasX, canvasY,info[0], info[1], info[2], info[3], spriteScale);
         }
 
         const pixelToM = ~~(canvasWidth / 20); // about 20 meters per screen
@@ -218,20 +238,21 @@
             ctx.textBaseline = 'alphabetic';
             ctx.fillText(text, x, y + 25);
         }
+        function drawMarkerText(text, x, y){}
 
         // Draw the distance markers for a player (10, 20, 30, etc)
         function drawDistanceMarkers(playerState) {
             // draw the user's label
             drawMarker(playerState.name, 100, playerState.Y+60 );
             let x = ~~(playerState.X - 10*pixelToM);
-            let distance = ~~(playerState.distance - 10); // start BEHIND the player so it doesnt dissppear
+            let distance = ~~(playerState.distance - 10); // start BEHIND the player so it doesnt dissappear
             let xShift = (playerState.distance - 10 - distance) * pixelToM; // shift the drawing for smooth animation in floating point distances
             while(x <= canvasWidth) {
                 if(distance===playerState.maxDistance && playerState.finisher) {
                     if(playerState.distance >= playerState.maxDistance) {
-                        drawBgSprite("win", x, playerState.Y);
+                        drawBgSprite(ctx, "win", x, playerState.Y);
                     } else {
-                        drawBgSprite("finish", x, playerState.Y);
+                        drawBgSprite(ctx, "finish", x, playerState.Y);
                     }
                 }
                 if(distance % 10 === 0 && distance > 0 ) {
@@ -245,71 +266,86 @@
                 x += pixelToM
             }
         }
+
+        const backgroundCanvas = document.createElement('canvas');
+        backgroundCanvas.width = canvasWidth; backgroundCanvas.height = canvasHeight;
+        let bgCacheKey = null; // if this "key" is different, it means we need to re-draw the background.
+                               // if it's the same, we can skip all that and used the cached background
         function drawBackground() {
-            // draw the grass sprites
-            const grassWidth=250*spriteScale;
-            const wallWidth = 28*spriteScale; // also fan width
-            const trackWidth =  25*spriteScale;
+            // right now skyText changing is the only reason we'd have to redraw the canvas
+            const this_cacheKey = state.game.skyText[2] ;
+            if(this_cacheKey !== bgCacheKey) {
+                bgCacheKey = this_cacheKey;
+                const bg_ctx = backgroundCanvas.getContext("2d");
+                // draw the grass sprites
+                const grassWidth=250*spriteScale;
+                const wallWidth = 28*spriteScale; // also fan width
+                const trackWidth =  25*spriteScale;
 
 
-            let x = 0;
-            let y= 0;
+                let x = 0;
+                let y= 0;
 
-            x=0;
-            while(x<=canvasWidth) {
-                drawBgSprite("grass", x, state.cpu.Y );
-                drawBgSprite("grass", x, state.player1.Y );
-                drawBgSprite("grass", x, state.player2.Y );
-                drawBgSprite("grass", x, state.player3.Y );
-                drawBgSprite("grass", x, canvasHeight-75 );
-                x+=grassWidth;
+                x=0;
+                while(x<=canvasWidth) {
+                    drawBgSprite(bg_ctx,"grass", x, state.cpu.Y );
+                    drawBgSprite(bg_ctx,"grass", x, state.player1.Y );
+                    drawBgSprite(bg_ctx,"grass", x, state.player2.Y );
+                    drawBgSprite(bg_ctx,"grass", x, state.player3.Y );
+                    drawBgSprite(bg_ctx,"grass", x, canvasHeight-75 );
+                    x+=grassWidth;
+                }
+
+                const wallY =  state.cpu.Y -50;
+                x=0;
+                while(x<canvasWidth) {
+                    drawBgSprite(bg_ctx, "fans", x, wallY-50);
+                    drawBgSprite(bg_ctx, "wall", x, wallY);
+                    x+=wallWidth;
+                }
+
+                // draw the tracks
+                x=0;
+                while(x <= canvasWidth) {
+
+                    drawBgSprite(bg_ctx, "track", x, state.cpu.Y );
+                    drawBgSprite(bg_ctx, "track", x, state.player1.Y);
+                    drawBgSprite(bg_ctx, "track", x, state.player2.Y);
+                    drawBgSprite(bg_ctx, "track", x, state.player3.Y);
+
+                    x += trackWidth;
+                }
+
+
+
+                // draw the sky text
+                x=canvasWidth/2 -110; y=150;
+                bg_ctx.fillStyle = "black";
+                bg_ctx.strokeStyle = "blue";
+                bg_ctx.lineWidth = 5;
+                bg_ctx.beginPath();
+                bg_ctx.fillRect(x-300, y-100, 600, 150);
+                bg_ctx.strokeRect(x-300, y-100, 600, 150);
+                // now the text
+                bg_ctx.font = "30px \"Press Start 2P\", Monaco, monospace";
+                bg_ctx.fillStyle = "white";
+
+                bg_ctx.textAlign = "center";
+                bg_ctx.textBaseline = 'alphabetic';
+                for(let i=0; i<state.game.skyText.length; i++ ) {
+                    bg_ctx.fillText(state.game.skyText[i], x, y - 50 );
+                    y+=50;
+                }
             }
-
-            const wallY =  state.cpu.Y -50;
-            x=0;
-            while(x<canvasWidth) {
-                drawBgSprite("fans", x, wallY-50);
-                drawBgSprite("wall", x, wallY);
-                x+=wallWidth;
-            }
-
-            // draw the tracks
-            x=0;
-            while(x <= canvasWidth) {
-
-                drawBgSprite("track", x, state.cpu.Y );
-                drawBgSprite("track", x, state.player1.Y);
-                drawBgSprite("track", x, state.player2.Y);
-                drawBgSprite("track", x, state.player3.Y);
-
-                x += trackWidth;
-            }
+            // copy the cached canvas over
+            ctx.drawImage(backgroundCanvas, 0, 0);
 
             // now draw the numbers for each player's tracks
+            // these can't be cached
             drawDistanceMarkers(state.cpu);
             drawDistanceMarkers(state.player1);
             drawDistanceMarkers(state.player2);
             drawDistanceMarkers(state.player3);
-
-            // draw the sky text
-            x=canvasWidth/2 -110; y=150;
-            ctx.fillStyle = "black";
-            ctx.strokeStyle = "blue";
-            ctx.lineWidth = 5;
-            ctx.beginPath();
-            ctx.fillRect(x-300, y-100, 600, 150);
-            ctx.strokeRect(x-300, y-100, 600, 150);
-            // now the text
-            ctx.font = "30px \"Press Start 2P\", Monaco, monospace";
-            ctx.fillStyle = "white";
-
-            ctx.textAlign = "center";
-            ctx.textBaseline = 'alphabetic';
-            for(let i=0; i<state.game.skyText.length; i++ ) {
-                ctx.fillText(state.game.skyText[i], x, y - 50 );
-                y+=50;
-            }
-
         }
 
         //STATE
@@ -701,7 +737,7 @@
 
                     //move player if buttons pushed
                     if(state.player1.canRun && state.player1.distance < state.player1.maxDistance) {
-                        if(state.player1.buttonPushed) state.player1.distance +=0.70;
+                        if(state.player1.buttonPushed) state.player1.distance +=0.35;
                         state.player1.distance +=0.05;
                         state.player1.targetX = (state.player1.maxDistance - state.player1.distance) < cpuDistLeft ? 750 : 250 ;
                         state.player1.action = "running";
@@ -777,6 +813,7 @@
                 }
                 else if(state.game.state === "reset") {
                     document.getElementById("sndrun").pause();
+                    bgCacheKey = null; // redraw bg next time
                     // autoplay should survive reset
                     let autoplay = state.game.autoplay;
                     state = JSON.parse(JSON.stringify(initialState));
@@ -918,6 +955,14 @@
     let buttonLastStatus = [Array(16).fill(false), Array(16).fill(false), Array(16).fill(false)];
     let lastRunButtonPushed = ["B","B","B"];
     let lastGamepadTimestamp =  performance.now();
+
+    // so windows and linux use different button mapping for the gamepad API
+    // isn't cross OS compatibility FUN!! _(┐「ε:)_
+    let weLinux = true;
+    if (navigator.appVersion.indexOf("Win") !== -1)  { weLinux = false; }
+    const aButtonIdx = 1;
+    const bButtonIdx = weLinux ? 2 : 0;
+
     function gamepadLogic() {
         var gamepads = navigator.getGamepads();
         // store the timestamp and save the cycles if nothing's changed
@@ -935,7 +980,6 @@
         // in this way we only react when your finger is taken off of the button
         let buttonsPushed = [Array(16).fill(false), Array(16).fill(false), Array(16).fill(false)];
 
-
         let state = document.state;
         for(let i=0; i<3; i++)  {
             if(gamepads[i] && gamepads[i].buttons){
@@ -944,11 +988,22 @@
                     if(gamepads[i].buttons[j]) {
                         if( buttonLastStatus[i][j] && !gamepads[i].buttons[j].pressed) buttonsPushed[i][j] = true;
                         buttonLastStatus[i][j] = gamepads[i].buttons[j].pressed;
-
+                    }
+                    else {
+                        // for faked buttons
+                        if(buttonLastStatus[i][j]) buttonsPushed[i][j] = true;
+                        buttonLastStatus[i][j] = false;
                     }
                 }
-                //hacking together axis if that is the directions instead of DPAD
-                if(gamepads[i].axes[1] === -1) buttonLastStatus[i][12] = true;
+                if(weLinux) {
+                    //hacking together axis if that is the directions instead of DPAD
+                    if(gamepads[i].axes[1] === -1) buttonLastStatus[i][12] = true;
+                    if(gamepads[i].axes[1] === 1) buttonLastStatus[i][13] = true;
+                    if(gamepads[i].axes[0] === -1) buttonLastStatus[i][14] = true;
+                    if(gamepads[i].axes[0] === 1) buttonLastStatus[i][15] = true;
+
+                }
+
             }
         }
 
@@ -960,10 +1015,11 @@
 
         //P1 menu selection logic
         if(state.game.state === "menu") {
+
             // B button
-            if(buttonsPushed[0][0]) state.game.menu.whichMenu = "main"; // back to main menu
+            if(buttonsPushed[0][bButtonIdx]) state.game.menu.whichMenu = "main"; // back to main menu
             // A button
-            else if(buttonsPushed[0][1]) selectionMade(state);
+            else if(buttonsPushed[0][aButtonIdx]) selectionMade(state);
             // up DPAD
             else if(buttonsPushed[0][12]) state.game.menu.selectedIdx--;
             // down DPAD
@@ -989,12 +1045,12 @@
 
             for(let i=0; i<3; i++) {
 
-                if(buttonsPushed[i][0]) {
+                if(buttonsPushed[i][aButtonIdx]) {
                     if(lastRunButtonPushed[i] === "A") setAllPlayerStates("buttonPushed", true);
                     lastRunButtonPushed[i] = "B";
                     console.log("b")
                 }
-                else if(buttonsPushed[i][1]) {
+                else if(buttonsPushed[i][bButtonIdx]) {
                     if(lastRunButtonPushed[i] === "B") setAllPlayerStates("buttonPushed", true);
                     lastRunButtonPushed[i] = "A";
                     console.log("A")
