@@ -670,8 +670,8 @@
             // autplay draw logic
             // autoplay logic
             if(state.game.autoplay) {
-                // everyone runs at half speed in autoplay
-                setAllPlayerStates("buttonPushed", framenum % 5 === 0);
+
+
                 // if we're in the main menu, enable a cheat and start the game
                 if(state.game.state === "menu" && state.game.menu.whichMenu === "main") {
                     let cheat = autoplayCheatOrder[lastAutoplayCheat++ % autoplayCheatOrder.length];
@@ -719,6 +719,9 @@
 
                 // Game logic
                 if(state.game.state === "game") {
+                    if(state.game.autoplay && framenum % 6 === 0) {
+                        setAllPlayerStates("buttonPushed", true);
+                    }
                     
                     // smooth animaton
                     if(state.cpu.targetX > state.cpu.X) state.cpu.X+=5;
@@ -737,8 +740,8 @@
 
                     //move player if buttons pushed
                     if(state.player1.canRun && state.player1.distance < state.player1.maxDistance) {
-                        if(state.player1.buttonPushed) state.player1.distance +=0.35;
-                        state.player1.distance +=0.05;
+                        if(state.player1.buttonPushed) state.player1.distance +=0.50;
+                        state.player1.distance +=0.12;
                         state.player1.targetX = (state.player1.maxDistance - state.player1.distance) < cpuDistLeft ? 750 : 250 ;
                         state.player1.action = "running";
                         state.player1.buttonPushed = false;
@@ -747,7 +750,7 @@
 
                     if(state.player2.canRun && state.player2.distance < state.player2.maxDistance) {
                         if(state.player2.buttonPushed) state.player2.distance +=0.50;
-                        state.player2.distance +=0.10;
+                        state.player2.distance +=0.15;
                         state.player2.targetX = (state.player2.maxDistance - state.player2.distance) < cpuDistLeft ? 750 : 250 ;
                         state.player2.action = "running";
                         state.player2.buttonPushed = false;
@@ -755,15 +758,15 @@
                     }
 
                     if(state.player3.canRun && state.player3.distance < state.player3.maxDistance) {
-                        if(state.player3.buttonPushed) state.player3.distance +=0.50;
-                        state.player3.distance +=0.10;
+                        if(state.player3.buttonPushed) state.player3.distance +=0.70;
+                        state.player3.distance +=0.15;
                         state.player3.targetX = (state.player3.maxDistance - state.player3.distance) < cpuDistLeft ? 750 : 250 ;
                         state.player3.action = "running";
                         state.player3.buttonPushed = false;
                     }
 
                     //move CPU
-                    if(state.cpu.canRun && state.cpu.distance < state.cpu.maxDistance) state.cpu.distance +=0.20;
+                    if(state.cpu.canRun && state.cpu.distance < state.cpu.maxDistance) state.cpu.distance +=0.30;
                     //lose condition
                     else if(state.cpu.distance >= state.cpu.maxDistance) state.game.state = "lose";
                     //only win if player 3 is at the max
@@ -881,7 +884,7 @@
                     switch(currentCode){
                         case "_CVD":
                             succ = true;
-                            state.game.cpuHeadStart = 19000;
+                            state.game.cpuHeadStart = 30000;
                             // treat the text array as immutable so reset works
                             state.game.menu.helper.text = state.game.menu.helper.text.concat([cvdHelperText]);
                             state.game.cheatsActive.push("_CVD");
