@@ -154,40 +154,44 @@
 
         var speechSnd = document.getElementById("speech");
 
-        // create pre-rendered sprite canvases
-        var player_sprite_info =  {
-            idle:  [0, 4, 19, 32],
-            mark: [176, 4, 29, 32],
-            set: [208, 4, 32, 32],
-            run0:  [2, 40, 23, 32],
-            run1:  [25, 40, 23, 32],
-            run2:  [46, 40, 23, 32],
-            run3:  [72, 40, 23, 32],
-            run4:  [96, 45, 31, 28],
-            run5:  [130, 41, 31, 32],
-            win0: [108, 172, 25, 32],
-            win1: [136, 172, 25, 32],
-            lose0: [204, 172, 17, 32],
-            lose1: [224, 172, 25, 32],
-        };
         const player_sprites = [];
-        for(let i=0; i< playerSpriteSheets.length; i++) {
-            const m_sprites = {};
-            for(const k in player_sprite_info){
-                const sprite_info = player_sprite_info[k];
-                const temp_canvas = document.createElement('canvas');
-                // shrinkwrap this canvas around the sprite
-                const scaledWidth = sprite_info[2]*spriteScale; const scaledHeight = sprite_info[3]*spriteScale;
-                temp_canvas.width = scaledWidth; temp_canvas.height = scaledHeight;
-                const temp_ctx = temp_canvas.getContext("2d");
-                // draw the sprite to a canvas all by itself
-                temp_ctx.drawImage(playerSpriteSheets[i],
-                    sprite_info[0] , sprite_info[1], sprite_info[2], sprite_info[3],
-                    0,0, scaledWidth, scaledHeight);
-                m_sprites[k] = temp_canvas;
+        function preRenderPlayers() {
+            // create pre-rendered sprite canvases
+            var player_sprite_info =  {
+                idle:  [0, 4, 19, 32],
+                mark: [176, 4, 29, 32],
+                set: [208, 4, 32, 32],
+                run0:  [2, 40, 23, 32],
+                run1:  [25, 40, 23, 32],
+                run2:  [46, 40, 23, 32],
+                run3:  [72, 40, 23, 32],
+                run4:  [96, 45, 31, 28],
+                run5:  [130, 41, 31, 32],
+                win0: [108, 172, 25, 32],
+                win1: [136, 172, 25, 32],
+                lose0: [204, 172, 17, 32],
+                lose1: [224, 172, 25, 32],
+            };
+
+            for(let i=0; i< playerSpriteSheets.length; i++) {
+                const m_sprites = {};
+                for(const k in player_sprite_info){
+                    const sprite_info = player_sprite_info[k];
+                    const temp_canvas = document.createElement('canvas');
+                    // shrinkwrap this canvas around the sprite
+                    const scaledWidth = sprite_info[2]*spriteScale; const scaledHeight = sprite_info[3]*spriteScale;
+                    temp_canvas.width = scaledWidth; temp_canvas.height = scaledHeight;
+                    const temp_ctx = temp_canvas.getContext("2d");
+                    // draw the sprite to a canvas all by itself
+                    temp_ctx.drawImage(playerSpriteSheets[i],
+                        sprite_info[0] , sprite_info[1], sprite_info[2], sprite_info[3],
+                        0,0, scaledWidth, scaledHeight);
+                    m_sprites[k] = temp_canvas;
+                }
+                player_sprites.push(m_sprites);
             }
-            player_sprites.push(m_sprites);
         }
+        document.preRenderPlayers = preRenderPlayers;
 
 
         // SPRITE HELPER FUNCS
@@ -835,6 +839,7 @@
 
     // logic for starting the game itself
     function startGame(state) {
+        document.preRenderPlayers();
         state.game.state = "prep";
         document.getElementById("sndtitle").pause();
         document.getElementById("sndstart").play();
